@@ -23,3 +23,15 @@ export class FetchHandleDataFailedException extends SnowballException {
     super(`Fetch Handle Data Failed Exception | Method: ${method} | Handle Id: ${handleId} | Message: ${msg}`);
   }
 }
+
+/**
+ * 不支持的类型错误
+ */
+export class UnsupportedMethodException extends SnowballException {
+  constructor(
+    public readonly method: RepostMethod,
+    public readonly handleId: string,
+  ) {
+    super(`Unsupported Method Exception | Method: ${method} | Handle Id: ${handleId}`);
+  }
+}

@@ -1,37 +1,17 @@
-# repost-adapter-starter
+# repost-adapter-wilddream
 
-A starter template for building custom adapters for [`@snowball-bot/repost-adapter`](https://www.npmjs.com/package/@snowball-bot/repost-adapter).
-
-Clone this repo, follow the checklist below, and you'll have a working adapter ready to publish.
+WildDream Repost Adapter for building custom adapters for [`@snowball-bot/repost-adapter`](https://www.npmjs.com/package/@snowball-bot/repost-adapter).
 
 ## Quick Start
 
 ```bash
-# 1. Use this template (click "Use this template" on GitHub)
-#    Or clone manually:
-git clone https://github.com/snowball-bot/repost-adapter-starter.git my-adapter
-cd my-adapter
-rm -rf .git
-git init
-
-# 2. Install dependencies
+# Install dependencies
 pnpm install
 
-# 3. Verify everything works
+# Verify everything works
 pnpm test
 pnpm build
 ```
-
-## Checklist: customize your adapter
-
-Use your editor's global search to find every `TODO` and `REPLACE_ME`:
-
-- [ ] `package.json` — set `name`, `description`, `author`, `keywords`
-- [ ] `src/index.ts` — set `manifest.name`, `manifest.platform`, `manifest.whitelistHosts`
-- [ ] `src/index.ts` — implement the `handle` function (the actual logic)
-- [ ] `test/adapter.test.ts` — update expectations to match your manifest
-- [ ] `LICENSE` — change copyright holder
-- [ ] `README.md` — replace this file with your own
 
 ## Project structure
 

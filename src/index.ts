@@ -1,11 +1,19 @@
 import {
   Adapter,
-  AdapterContext, ParseLinkFailedException,
+  AdapterContext, BaseRepostAdapterResponsePayload, ParseLinkFailedException,
   RepostAdapterRequestParams,
-  RepostAdapterResponsePayload, SocialProvider,
+  RepostAdapterResponsePayload, RepostMethod, SocialProvider,
 } from '@snowball-bot/repost-adapter';
 import { HttpManager } from './utils/http';
 import {extractHandleId, extractURL, fetchHandleDataFromAPI} from "./manager";
+import { UnsupportedMethodException } from './utils/error';
+import {
+  getArtworkImageURL,
+  getUserHeadshotURL,
+  WildDreamArtworkResponse,
+  WildDreamUserProfileResponse,
+} from './wilddream.api';
+import dayjs, { Dayjs } from 'dayjs';
 
 export { HttpManager, HttpError } from './utils/http';
 export type {
@@ -46,9 +54,9 @@ const CONST: {
   apiTimeout: number,
   apiRetries: number,
 } = {
-  provider: "REPLACE_ME",
-  apiBaseURL: "https://example.com",
-  apiTimeout: 5000,
+  provider: "wilddream",
+  apiBaseURL: "https://www.wilddream.net",
+  apiTimeout: 10000,
   apiRetries: 1,
 }
 
@@ -66,9 +74,9 @@ const adapter: Adapter = {
   manifest: {
     name: `repost-adapter-${CONST.provider}`,
     provider: CONST.provider,
-    whitelistHosts: ['example.com'],
+    whitelistHosts: ['wilddream.net'],
     version: 1,
-    author: 'REPLACE_ME',
+    author: 'Rominwolf',
     billing: {
       text: 100,
       token: 100,
@@ -76,8 +84,8 @@ const adapter: Adapter = {
       green: 1,
     },
     providerInfo: {
-      name: 'REPLACE_ME',
-      icon: '✨',
+      name: 'WildDream',
+      icon: '🐾',
       color: '#FFFFFF',
       bgColor: '#000000',
     }
@@ -88,26 +96,21 @@ const adapter: Adapter = {
    * @param ctx
    */
   async initState(ctx: AdapterContext) {
-    // 读取配置（可选）。配置由核心通过 `ctx.config(key)` 提供。
-    // 比如 API key、限流参数等，建议把所有可调项都从 config 取。
-    const apiKey = ctx.config<string>('apiKey');
-    if (!apiKey) {
-      ctx.logger.warn(
-        `[${CONST.provider}] no apiKey configured, falling back to public API`
-      );
-    }
+    const userAgent = ctx.config<string>('userAgent');
 
-    // 创建 HTTP 客户端 (基于 fetch), 统一处理 baseUrl / 鉴权 / 超时 / 重试
+    // HTTP 客户端
     INSTANCE.http = new HttpManager({
       baseUrl: CONST.apiBaseURL,
       timeoutMs: CONST.apiTimeout,
       retries: CONST.apiRetries,
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+      headers: {
+        userAgent: `${userAgent}`,
+      },
       logger: ctx.logger,
     });
 
     // 注册转发请求处理器
-    ctx.on('onRepostRequest', (req) => handle(req, ctx, { apiKey }));
+    ctx.on('onRepostRequest', (req) => handle(req, ctx, {}));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -137,55 +140,86 @@ async function handle(
   ctx: AdapterContext,
   options: AdapterOptions
 ): Promise<RepostAdapterResponsePayload | null> {
-  ctx.logger.debug(`[${CONST.provider}] fetching ${req.source}`);
+  const { helper, logger } = ctx;
 
-  // TODO: 1) 从 req.source 解析出 Handle Id
-  const [handleMethod, handleId] = extractHandleId(req.source, 1);
+  logger.debug(`[${CONST.provider}] fetching ${req.source}`);
 
-  // TODO: 2) 调用平台 API 拿到原始数据
+  // 从 req.source 解析出 Handle Info
+  const [handleMethod, handleId] = extractHandleId(req.source);
+
+  // 不支持的转发模式
+  if (handleMethod === "live")
+    throw new UnsupportedMethodException(handleMethod, handleId);
+
+  // 调用平台 API 拿到原始数据
   const handleData = await fetchHandleDataFromAPI(INSTANCE.http!, handleMethod, handleId);
 
-  const postId = "";
-  const publishAt = new Date();
+  // 函数：构建 Post
+  const fnBuildPost = (): Omit<
+    BaseRepostAdapterResponsePayload,
+    'postId' | 'method'
+  > => {
+    const payload = handleData as WildDreamArtworkResponse;
+    const { userid: userId, username: userNickName, userpagename: userPageName } = payload.author;
 
-  const requesterUserId = "";
-  const requesterNickname = "";
+    return {
+      publishAt: dayjs.unix(+payload.artwork.dateline).toDate(),
 
-  const authorNickname = "";
+      author: {
+        headshotUrl: getUserHeadshotURL(userId),
+        nickname: userNickName,
+        userId: userPageName,
+      },
 
-  // TODO: 3) 转换成标准 response 格式
+      title: payload.artwork.title,
+      content: payload.artwork.description,
+
+      cover: getArtworkImageURL(userId, handleId),
+
+      badges: [],
+    };
+  };
+
+  // 函数：构建 Profile
+  const fnBuildProfile = (): Omit<BaseRepostAdapterResponsePayload, "postId" | "method"> => {
+    const payload = handleData as WildDreamUserProfileResponse;
+    const { userid: userId, username: userNickName, userpagename: userPageName, introduction } = payload.user;
+    const fursonaImageId = payload.profile.fursona_img;
+
+    return {
+      author: {
+        headshotUrl: getUserHeadshotURL(userId),
+        nickname: userNickName,
+        userId: userPageName,
+      },
+
+      title: userNickName,
+      content: introduction,
+
+      images: fursonaImageId.length > 0 ? [ getArtworkImageURL(userId, fursonaImageId) ] : undefined,
+
+      badges: [
+        [
+          {
+            emoji: "👀",
+            name: `浏览 ${payload.artworkcount} 次`,
+          },
+        ]
+      ],
+    }
+  }
+
+  // 转换成标准 response 格式
   return {
-    code: req.code,
+    method: handleMethod,
     provider: CONST.provider,
+    code: req.code,
     originalUrl: req.source,
-    method: "post",
+    requester: req.requester,
 
-    postId: postId,
-    publishAt: publishAt,
+    postId: handleId,
 
-    requester: {
-      userId: requesterUserId,
-      nickname: requesterNickname,
-    },
-    author: {
-      nickname: authorNickname,
-    },
-
-    title: "",
-    content: `TODO: real content from ${req.source}`,
-    cover: "",
-    images: [],
-    overlayCoverBuffer: undefined,
-    child: undefined,
-    badges: [],
-    strawberry: undefined,
-    watermelon: undefined,
-
-    useProxy: false,
-    useTranslator: false,
-
-    canvasWidth: undefined,
-    extra: undefined,
+    ...(handleMethod === "post" ? fnBuildPost() : fnBuildProfile()),
   };
 }
 
