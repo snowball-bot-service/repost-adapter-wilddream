@@ -1,8 +1,8 @@
 {
-  "name": "repost-adapter-REPLACE_ME",
-  "version": "0.1.0",
-  "description": "TODO: describe your adapter",
-  "author": "TODO: your name",
+  "name": "@snowball-bot/repost-adapter-wilddream",
+  "version": "1.0.0",
+  "description": "The Repost Adapter for WildDream built for Snowball Bot v3",
+  "author": "Rominwolf",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -23,7 +23,9 @@
     "LICENSE"
   ],
   "scripts": {
+    "pre": "pnpm dlx publint",
     "build": "tsup",
+    "publish": "pnpm publish --access public",
     "dev": "tsup --watch",
     "dev:play": "tsx dev/playground.ts",
     "dev:play:watch": "tsx watch dev/playground.ts",
@@ -43,7 +45,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@snowball-bot/repost-adapter": "^1.0.5",
+    "@snowball-bot/repost-adapter": "^1.0.7",
     "dayjs": "^1.11.21"
   },
   "devDependencies": {
@@ -60,5 +62,6 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "sideEffects": false
 }

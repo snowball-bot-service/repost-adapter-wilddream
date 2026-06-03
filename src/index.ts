@@ -1,19 +1,21 @@
 import {
   Adapter,
-  AdapterContext, BaseRepostAdapterResponsePayload, ParseLinkFailedException,
-  RepostAdapterRequestParams,
-  RepostAdapterResponsePayload, RepostMethod, SocialProvider,
+  AdapterContext,
+  AdapterRepostResponsePayload,
+  AdapterRepostRequestParams,
+  SocialProvider, AdapterProcessRequestParams, AdapterProcessResponsePayload, ProcessMediaInfo,
 } from '@snowball-bot/repost-adapter';
 import { HttpManager } from './utils/http';
-import {extractHandleId, extractURL, fetchHandleDataFromAPI} from "./manager";
-import { UnsupportedMethodException } from './utils/error';
+import {extractHandleId, fetchHandleDataFromAPI} from "./manager";
+import { UnsupportedMethodException, UnsupportedProcessException } from './utils/error';
 import {
+  fetchArtworkData,
   getArtworkImageURL,
   getUserHeadshotURL,
   WildDreamArtworkResponse,
   WildDreamUserProfileResponse,
 } from './wilddream.api';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 
 export { HttpManager, HttpError } from './utils/http';
 export type {
@@ -110,7 +112,8 @@ const adapter: Adapter = {
     });
 
     // 注册转发请求处理器
-    ctx.on('onRepostRequest', (req) => handle(req, ctx, {}));
+    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, {}));
+    ctx.on("onProcessRequest", (req) => handleProcessingRequest(req, ctx, {}));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -135,11 +138,11 @@ const adapter: Adapter = {
 //
 // ============================================================================
 
-async function handle(
-  req: RepostAdapterRequestParams,
+async function handleRepostRequest(
+  req: AdapterRepostRequestParams,
   ctx: AdapterContext,
-  options: AdapterOptions
-): Promise<RepostAdapterResponsePayload | null> {
+  _options: AdapterOptions
+): Promise<AdapterRepostResponsePayload | null> {
   const { helper, logger } = ctx;
 
   logger.debug(`[${CONST.provider}] fetching ${req.source}`);
@@ -156,8 +159,8 @@ async function handle(
 
   // 函数：构建 Post
   const fnBuildPost = (): Omit<
-    BaseRepostAdapterResponsePayload,
-    'postId' | 'method'
+    AdapterRepostResponsePayload,
+    'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
   > => {
     const payload = handleData as WildDreamArtworkResponse;
     const { userid: userId, username: userNickName, userpagename: userPageName } = payload.author;
@@ -176,12 +179,27 @@ async function handle(
 
       cover: getArtworkImageURL(userId, handleId),
 
-      badges: [],
+      badges: [
+        [
+          { emoji: "👀", name: helper.extraHumanable("浏览", +payload.artwork.viewcount, "次") },
+          { emoji: "✨", name: helper.extraHumanable("喜欢", +payload.artwork.favcount, "人") },
+        ]
+      ],
+
+      useForward: +(payload.artwork.rating) > 0,
+
+      strawberry: {
+        emoji: "🖼",
+        feature: "原图",
+      },
     };
   };
 
   // 函数：构建 Profile
-  const fnBuildProfile = (): Omit<BaseRepostAdapterResponsePayload, "postId" | "method"> => {
+  const fnBuildProfile = (): Omit<
+    AdapterRepostResponsePayload,
+    'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
+  > => {
     const payload = handleData as WildDreamUserProfileResponse;
     const { userid: userId, username: userNickName, userpagename: userPageName, introduction } = payload.user;
     const fursonaImageId = payload.profile.fursona_img;
@@ -200,10 +218,9 @@ async function handle(
 
       badges: [
         [
-          {
-            emoji: "👀",
-            name: `浏览 ${payload.artworkcount} 次`,
-          },
+          { emoji: "🧩", name: helper.extraHumanable("作品总数", +payload.artworkcount, "个") },
+          { emoji: "👀", name: helper.extraHumanable("作品总观看", +payload.pageviews, "次") },
+          { emoji: "✨", name: helper.extraHumanable("作品总喜欢", +payload.favcount, "次") },
         ]
       ],
     }
@@ -221,6 +238,41 @@ async function handle(
 
     ...(handleMethod === "post" ? fnBuildPost() : fnBuildProfile()),
   };
+}
+
+async function handleProcessingRequest(
+  req: AdapterProcessRequestParams,
+  ctx: AdapterContext,
+  _options: AdapterOptions,
+): Promise<AdapterProcessResponsePayload | null> {
+  const { logger } = ctx;
+  const { method, source, requester, code } = req;
+
+  logger.debug(`[${CONST.provider}] fetching ${method}: ${source}`);
+
+  // 获取原图
+  if (method === "strawberry") {
+    const artworkId = source;
+
+    const artwork = await fetchArtworkData(INSTANCE.http!, artworkId);
+
+    const medias: ProcessMediaInfo[] = [
+      {
+        type: "image",
+        url: getArtworkImageURL(artwork.author.userid, artworkId),
+        summary: `[图片]${artwork.artwork.title}_${artworkId}`,
+      }
+    ];
+
+    return {
+      provider: CONST.provider,
+      code, requester, method,
+      medias,
+    };
+  }
+
+  // 抛出不支持的进程
+  throw new UnsupportedProcessException(method, source);
 }
 
 export default adapter;

@@ -17,7 +17,12 @@ async function main() {
 
   for (const url of testUrls) {
     try {
-      await host.emitRepost(url);
+      const res = await host.emitRepost(url);
+
+      // 转发 post 后，模拟用户点 🍓 触发 strawberry 进程（取原图）
+      if (res?.method === 'post' && res.strawberry) {
+        await host.emitProcess('strawberry', res.postId);
+      }
     } catch (err) {
       console.error(`✗ Failed:`, err);
     }
