@@ -27,6 +27,7 @@ export interface WildDreamArtwork {
   cert: string;
   viewcount: string;
   favcount: string;
+  filename?: string;
 }
 
 /**
@@ -209,4 +210,16 @@ export function getArtworkImageURL(
   size: "preview" | "thumb" = "preview",
 ): string {
   return `https://www.wilddream.net/Public/uploads/artwork/${userId}/${size}/${artworkId}.webp`;
+}
+
+/**
+ * 获取绘画原始图片 URL
+ * @param userId
+ * @param fileName
+ */
+export function getArtworkRawImageURL(
+  userId: string | number,
+  fileName: string,
+): string {
+  return `https://www.wilddream.net//Public/uploads/artwork/${userId}/full/${fileName}`;
 }

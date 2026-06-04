@@ -10,7 +10,7 @@ import {extractHandleId, fetchHandleDataFromAPI} from "./manager";
 import { UnsupportedMethodException, UnsupportedProcessException } from './utils/error';
 import {
   fetchArtworkData,
-  getArtworkImageURL,
+  getArtworkImageURL, getArtworkRawImageURL,
   getUserHeadshotURL,
   WildDreamArtworkResponse,
   WildDreamUserProfileResponse,
@@ -163,7 +163,9 @@ async function handleRepostRequest(
     'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
   > => {
     const payload = handleData as WildDreamArtworkResponse;
-    const { userid: userId, username: userNickName, userpagename: userPageName } = payload.author;
+    const {
+      userid: userId, username: userNickName, userpagename: userPageName,
+    } = payload.author;
 
     return {
       publishAt: dayjs.unix(+payload.artwork.dateline).toDate(),
@@ -182,7 +184,7 @@ async function handleRepostRequest(
       badges: [
         [
           { emoji: "👀", name: helper.extraHumanable("浏览", +payload.artwork.viewcount, "次") },
-          { emoji: "✨", name: helper.extraHumanable("喜欢", +payload.artwork.favcount, "人") },
+          { emoji: "✨", name: helper.extraHumanable("收藏", +payload.artwork.favcount, "人") },
         ]
       ],
 
@@ -190,7 +192,7 @@ async function handleRepostRequest(
 
       strawberry: {
         emoji: "🖼",
-        feature: "原图",
+        feature: "原图/浏览图",
       },
     };
   };
@@ -218,9 +220,9 @@ async function handleRepostRequest(
 
       badges: [
         [
-          { emoji: "🧩", name: helper.extraHumanable("作品总数", +payload.artworkcount, "个") },
-          { emoji: "👀", name: helper.extraHumanable("作品总观看", +payload.pageviews, "次") },
-          { emoji: "✨", name: helper.extraHumanable("作品总喜欢", +payload.favcount, "次") },
+          { emoji: "🧩", name: helper.extraHumanable("作品", +payload.artworkcount, "份") },
+          { emoji: "👀", name: helper.extraHumanable("总浏览量", +payload.pageviews, "次") },
+          { emoji: "✨", name: helper.extraHumanable("被收藏", +payload.favcount, "次") },
         ]
       ],
     }
@@ -252,15 +254,24 @@ async function handleProcessingRequest(
 
   // 获取原图
   if (method === "strawberry") {
-    const artworkId = source;
+    const artwork = await fetchArtworkData(INSTANCE.http!, source);
+    const {
+      title,
+      artworkid: artworkId,
+      allowfullimage: allowFullImage,
+      filename: fileName,
+      userid: userId,
+    } = artwork.artwork;
 
-    const artwork = await fetchArtworkData(INSTANCE.http!, artworkId);
+    const url = allowFullImage === "1"
+      ? getArtworkRawImageURL(userId, fileName!)
+      : getArtworkImageURL(userId, artworkId);
 
     const medias: ProcessMediaInfo[] = [
       {
         type: "image",
-        url: getArtworkImageURL(artwork.author.userid, artworkId),
-        summary: `[图片]${artwork.artwork.title}_${artworkId}`,
+        url: url,
+        summary: `[图片]${title}_${artworkId}`,
       }
     ];
 
