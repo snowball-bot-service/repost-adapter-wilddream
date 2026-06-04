@@ -89,7 +89,7 @@ const adapter: Adapter = {
       name: 'WildDream',
       icon: '🐾',
       color: '#FFFFFF',
-      bgColor: '#000000',
+      bgColor: '#2B3E50',
     }
   },
 
