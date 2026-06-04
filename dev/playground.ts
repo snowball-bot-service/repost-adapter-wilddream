@@ -11,7 +11,7 @@ async function main() {
 
   // 测试 URL 列表：随便改、随便加
   const testUrls = [
-    'https://www.wilddream.net/Art/view/44716',
+    // 'https://www.wilddream.net/Art/view/44716',
     'https://www.wilddream.net/user/rominwolf',
   ];
 

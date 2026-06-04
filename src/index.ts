@@ -214,7 +214,7 @@ async function handleRepostRequest(
       title: userNickName,
       content: introduction,
 
-      images: fursonaImageId.length > 0 ? [ getArtworkImageURL(userId, fursonaImageId) ] : undefined,
+      cover: fursonaImageId.length > 0 ? getArtworkImageURL(userId, fursonaImageId) : undefined,
 
       badges: [
         [
