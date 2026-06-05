@@ -166,9 +166,16 @@ async function handleRepostRequest(
     const {
       userid: userId, username: userNickName, userpagename: userPageName,
     } = payload.author;
+    const {
+      title, description,
+      rating,
+      allowfullimage: allowFullImage,
+      dateline: publishDate,
+      favcount: favs, viewcount: views,
+    } = payload.artwork;
 
     return {
-      publishAt: dayjs.unix(+payload.artwork.dateline).toDate(),
+      publishAt: dayjs.unix(+publishDate).toDate(),
 
       author: {
         headshotUrl: getUserHeadshotURL(userId),
@@ -176,23 +183,23 @@ async function handleRepostRequest(
         userId: userPageName,
       },
 
-      title: payload.artwork.title,
-      content: payload.artwork.description,
+      title: title,
+      content: description,
 
       cover: getArtworkImageURL(userId, handleId),
 
       badges: [
         [
-          { emoji: "👀", name: helper.extraHumanable("浏览", +payload.artwork.viewcount, "次") },
-          { emoji: "✨", name: helper.extraHumanable("收藏", +payload.artwork.favcount, "人") },
+          { emoji: "👀", name: helper.extraHumanable("浏览", +views, "次") },
+          { emoji: "✨", name: helper.extraHumanable("收藏", +favs, "人") },
         ]
       ],
 
-      useForward: +(payload.artwork.rating) > 0,
+      useForward: +(rating) > 0,
 
       strawberry: {
         emoji: "🖼",
-        feature: "原图/浏览图",
+        feature: allowFullImage === "1" ? "原图" : "浏览图",
       },
     };
   };
@@ -203,7 +210,9 @@ async function handleRepostRequest(
     'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
   > => {
     const payload = handleData as WildDreamUserProfileResponse;
-    const { userid: userId, username: userNickName, userpagename: userPageName, introduction } = payload.user;
+    const {
+      userid: userId, username: userNickName, userpagename: userPageName, introduction
+    } = payload.user;
     const fursonaImageId = payload.profile.fursona_img;
 
     return {

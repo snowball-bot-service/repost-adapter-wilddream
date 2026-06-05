@@ -1,6 +1,6 @@
 {
   "name": "@snowball-bot/repost-adapter-wilddream",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "The Repost Adapter for WildDream built for Snowball Bot v3",
   "author": "Rominwolf",
   "type": "module",
