@@ -39,10 +39,6 @@ export type {
 //
 // ============================================================================
 
-interface AdapterOptions {
-  apiKey?: string;
-}
-
 /**
  * 常量仓库
  * @param apiBaseURL API 基础地址
@@ -90,7 +86,7 @@ const adapter: Adapter = {
       icon: '🐾',
       color: '#FFFFFF',
       bgColor: '#2B3E50',
-    }
+    },
   },
 
   /**
@@ -99,6 +95,7 @@ const adapter: Adapter = {
    */
   async initState(ctx: AdapterContext) {
     const userAgent = ctx.config<string>('userAgent');
+    const PHPSESSID = ctx.config<string>('PHPSESSID');
 
     // HTTP 客户端
     INSTANCE.http = new HttpManager({
@@ -107,13 +104,14 @@ const adapter: Adapter = {
       retries: CONST.apiRetries,
       headers: {
         userAgent: `${userAgent}`,
+        cookie: `PHPSESSID=${PHPSESSID}`,
       },
       logger: ctx.logger,
     });
 
     // 注册转发请求处理器
     ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, {}));
-    ctx.on("onProcessRequest", (req) => handleProcessingRequest(req, ctx, {}));
+    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, {}));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -141,7 +139,7 @@ const adapter: Adapter = {
 async function handleRepostRequest(
   req: AdapterRepostRequestParams,
   ctx: AdapterContext,
-  _options: AdapterOptions
+  _options: object,
 ): Promise<AdapterRepostResponsePayload | null> {
   const { helper, logger } = ctx;
 
@@ -254,7 +252,7 @@ async function handleRepostRequest(
 async function handleProcessingRequest(
   req: AdapterProcessRequestParams,
   ctx: AdapterContext,
-  _options: AdapterOptions,
+  _options: object
 ): Promise<AdapterProcessResponsePayload | null> {
   const { logger } = ctx;
   const { method, source, requester, code } = req;
@@ -262,7 +260,7 @@ async function handleProcessingRequest(
   logger.debug(`[${CONST.provider}] fetching ${method}: ${source}`);
 
   // 获取原图
-  if (method === "strawberry") {
+  if (method === 'strawberry') {
     const artwork = await fetchArtworkData(INSTANCE.http!, source);
     const {
       title,
@@ -272,21 +270,24 @@ async function handleProcessingRequest(
       userid: userId,
     } = artwork.artwork;
 
-    const url = allowFullImage === "1"
-      ? getArtworkRawImageURL(userId, fileName!)
-      : getArtworkImageURL(userId, artworkId);
+    const url =
+      allowFullImage === '1'
+        ? getArtworkRawImageURL(userId, fileName!)
+        : getArtworkImageURL(userId, artworkId);
 
     const medias: ProcessMediaInfo[] = [
       {
-        type: "image",
+        type: 'image',
         url: url,
         summary: `[图片]${title}_${artworkId}`,
-      }
+      },
     ];
 
     return {
       provider: CONST.provider,
-      code, requester, method,
+      code,
+      requester,
+      method,
       medias,
     };
   }
