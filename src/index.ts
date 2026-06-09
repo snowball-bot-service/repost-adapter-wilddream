@@ -255,13 +255,13 @@ async function handleProcessingRequest(
   _options: object
 ): Promise<AdapterProcessResponsePayload | null> {
   const { logger } = ctx;
-  const { method, source, requester, code } = req;
+  const { method, source: handleId, requester, code, repostMethod: handleType } = req;
 
-  logger.debug(`[${CONST.provider}] fetching ${method}: ${source}`);
+  logger.debug(`[${CONST.provider}] fetching ${method}: ${handleType}, ${handleId}`);
 
   // 获取原图
   if (method === 'strawberry') {
-    const artwork = await fetchArtworkData(INSTANCE.http!, source);
+    const artwork = await fetchArtworkData(INSTANCE.http!, handleId);
     const {
       title,
       artworkid: artworkId,
@@ -293,7 +293,7 @@ async function handleProcessingRequest(
   }
 
   // 抛出不支持的进程
-  throw new UnsupportedProcessException(method, source);
+  throw new UnsupportedProcessException(method, handleId);
 }
 
 export default adapter;

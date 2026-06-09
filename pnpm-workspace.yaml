@@ -5,3 +5,4 @@ minimumReleaseAgeExclude:
   - '@snowball-bot/repost-adapter@1.0.5'
   - '@snowball-bot/repost-adapter@1.0.6'
   - '@snowball-bot/repost-adapter@1.0.7'
+  - '@snowball-bot/repost-adapter@1.0.9'
